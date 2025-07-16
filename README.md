@@ -1,30 +1,29 @@
-# Image batch processor
+# Resizer for social media [![Support me on Ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/abroadman)
 
-*Automatically synced with your [v0.dev](https://v0.dev) deployments*
+Privacy-friendly, no-upload tool that resizes images for nearly every major social platform.  
+Built open-source and powered locally: your browser handles everything, so your photos stay safe on your computer.
 
-[![Deployed on Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-black?style=for-the-badge&logo=vercel)](https://vercel.com/aiosifbusiness-1567s-projects/v0-image-batch-processor)
-[![Built with v0](https://img.shields.io/badge/Built%20with-v0.dev-black?style=for-the-badge)](https://v0.dev/chat/projects/gPO8A93Liyp)
+**Features (screenshot below explains it better):**
+- size presets for (most) social media needs (IG, FB, Twitter, YT, LinkedIn)
+- Background options
+  - solid color
+  - blurred main image
+  - combination of the above
+- Negative space (padding) + Image Outline (Outer Stroke)
+- Archive / Multi-JPG download
 
-## Overview
+## Screenshot
+![screenshot](https://github.com/user-attachments/assets/58ed8532-2407-4232-8706-8894657290b8)
 
-This repository will stay in sync with your deployed chats on [v0.dev](https://v0.dev).
-Any changes you make to your deployed app will be automatically pushed to this repository from [v0.dev](https://v0.dev).
+---
 
-## Deployment
+## Lazy docs
+```
+nvm use 24.4.1
+npm install
+npm build
+``` 
 
-Your project is live at:
-
-**[https://vercel.com/aiosifbusiness-1567s-projects/v0-image-batch-processor](https://vercel.com/aiosifbusiness-1567s-projects/v0-image-batch-processor)**
-
-## Build your app
-
-Continue building your app on:
-
-**[https://v0.dev/chat/projects/gPO8A93Liyp](https://v0.dev/chat/projects/gPO8A93Liyp)**
-
-## How It Works
-
-1. Create and modify your project using [v0.dev](https://v0.dev)
-2. Deploy your chats from the v0 interface
-3. Changes are automatically pushed to this repository
-4. Vercel deploys the latest version from this repository
+## Oh and btw
+[![Built with v0](https://img.shields.io/badge/Built%20with-v0.dev-black?style=for-the-badge)](https://v0.dev/)   
+Not even a gonna pretend being a front-ender.

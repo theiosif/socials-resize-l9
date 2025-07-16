@@ -20,6 +20,8 @@ interface ProcessingOptions {
   overlayColor: string
   quality: number
   outerBorder: number
+  strokeWidth: number
+  strokeColor: string
 }
 
 export default function InstagramBatchResizer() {
@@ -29,7 +31,7 @@ export default function InstagramBatchResizer() {
   const [progress, setProgress] = useState(0)
   const [previewUrl, setPreviewUrl] = useState<string>("")
 
-  // Settings - remove extensions from default values
+  // Settings
   const [pattern, setPattern] = useState("{stem}_final")
   const [canvasW, setCanvasW] = useState(1080)
   const [canvasH, setCanvasH] = useState(1350)
@@ -38,10 +40,13 @@ export default function InstagramBatchResizer() {
   const [overlayColor, setOverlayColor] = useState("#000000")
   const [quality, setQuality] = useState([100])
   const [outerBorder, setOuterBorder] = useState([0])
+  const [strokeWidth, setStrokeWidth] = useState([0])
+  const [strokeColor, setStrokeColor] = useState("#ffffff")
 
-  // Detect mobile device
+  // UI states
   const [isMobile, setIsMobile] = useState(false)
   const [downloadMode, setDownloadMode] = useState<"images" | "archive">("archive")
+  const [selectedPresetName, setSelectedPresetName] = useState<string | null>("Instagram Portrait 4:5")
 
   useEffect(() => {
     const checkMobile = () => {
@@ -60,15 +65,25 @@ export default function InstagramBatchResizer() {
   // Instagram format presets
   const formatPresets = [
     { name: "Instagram Portrait 4:5", width: 1080, height: 1350 },
-    { name: "Insta Square 1:1", width: 1350, height: 1350 },
-    { name: "Insta Story 9:16", width: 1080, height: 1920 },
+    { name: "Insta Square 1:1", width: 1350, height: 1350 }, // Removed text in brackets
+    { name: "Instagram Story 9:16", width: 1080, height: 1920 },
+    { name: "LinkedIn Personal Cover", width: 1584, height: 396 }, // Added LinkedIn preset
+    { name: "Facebook Page Cover", width: 1640, height: 664 },
+    { name: "Facebook Event Image", width: 1920, height: 1080 },
+    { name: "Facebook Group Header", width: 1640, height: 856 },
+    { name: "YouTube Thumbnail", width: 1280, height: 720 },
+    { name: "YouTube Profile", width: 800, height: 800 },
+    { name: "YouTube Cover", width: 2560, height: 1440 },
+    { name: "Twitter Profile", width: 400, height: 400 },
+    { name: "Twitter Header", width: 1500, height: 500 },
   ]
 
   const [archiveName, setArchiveName] = useState("resized-images")
 
-  const applyPreset = (preset: { width: number; height: number }) => {
+  const applyPreset = (preset: { name: string; width: number; height: number }) => {
     setCanvasW(preset.width)
     setCanvasH(preset.height)
+    setSelectedPresetName(preset.name)
   }
 
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -77,7 +92,7 @@ export default function InstagramBatchResizer() {
   // Generate preview when settings change
   useEffect(() => {
     generatePreview()
-  }, [blurRadius, overlayOpacity, overlayColor, quality, canvasW, canvasH, outerBorder])
+  }, [blurRadius, overlayOpacity, overlayColor, quality, canvasW, canvasH, outerBorder, strokeWidth, strokeColor])
 
   const generatePreview = async () => {
     try {
@@ -106,6 +121,8 @@ export default function InstagramBatchResizer() {
         overlayColor,
         quality: quality[0] / 100,
         outerBorder: outerBorder[0],
+        strokeWidth: strokeWidth[0],
+        strokeColor: strokeColor,
       })
 
       setPreviewUrl(canvas.toDataURL())
@@ -119,7 +136,7 @@ export default function InstagramBatchResizer() {
     ctx: CanvasRenderingContext2D,
     opts: ProcessingOptions,
   ) => {
-    const { canvasW, canvasH, blurRadius, overlayColor, overlayOpacity, outerBorder } = opts
+    const { canvasW, canvasH, blurRadius, overlayColor, overlayOpacity, outerBorder, strokeWidth, strokeColor } = opts
 
     // Clear canvas
     ctx.clearRect(0, 0, canvasW, canvasH)
@@ -138,13 +155,35 @@ export default function InstagramBatchResizer() {
     ctx.fillRect(0, 0, canvasW, canvasH)
     ctx.globalAlpha = 1
 
-    // Draw fitted original with outer border consideration
+    // Calculate fitted original dimensions and position
     const availableW = canvasW - outerBorder * 2
     const availableH = canvasH - outerBorder * 2
     const ratioFit = Math.min(availableW / imgBitmap.width, availableH / imgBitmap.height)
     const wFit = imgBitmap.width * ratioFit
     const hFit = imgBitmap.height * ratioFit
-    ctx.drawImage(imgBitmap, (canvasW - wFit) / 2, (canvasH - hFit) / 2, wFit, hFit)
+    const xFit = (canvasW - wFit) / 2
+    const yFit = (canvasH - hFit) / 2
+
+    // Draw stroke around the top-layer image (before drawing the image itself)
+    // This ensures the image is on top, effectively making the stroke appear "outer"
+    if (strokeWidth > 0) {
+      ctx.strokeStyle = strokeColor
+      ctx.lineWidth = strokeWidth
+      ctx.lineJoin = "miter" // Ensure straight corners
+
+      // Draw the stroke on a path that is offset outwards by half the stroke width.
+      // When the image is drawn on top, it will cover the inner half of the stroke,
+      // making the stroke appear entirely outside the image.
+      const strokeRectX = xFit - strokeWidth / 2
+      const strokeRectY = yFit - strokeWidth / 2
+      const strokeRectW = wFit + strokeWidth
+      const strokeRectH = hFit + strokeWidth
+
+      ctx.strokeRect(strokeRectX, strokeRectY, strokeRectW, strokeRectH)
+    }
+
+    // Draw fitted original image
+    ctx.drawImage(imgBitmap, xFit, yFit, wFit, hFit)
   }
 
   const processImage = async (imgBitmap: ImageBitmap, opts: ProcessingOptions): Promise<Blob> => {
@@ -215,6 +254,8 @@ export default function InstagramBatchResizer() {
             overlayColor,
             quality: quality[0] / 100,
             outerBorder: outerBorder[0],
+            strokeWidth: strokeWidth[0],
+            strokeColor: strokeColor,
           })
           processedFiles.push({ blob, filename })
         } catch (err) {
@@ -336,16 +377,25 @@ export default function InstagramBatchResizer() {
               <CardContent className="space-y-6">
                 <div>
                   <Label>Canvas Size Presets</Label>
-                  <div className="grid grid-cols-1 gap-2 mt-2 mb-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 mt-2 mb-4">
                     {formatPresets.map((preset, index) => (
                       <Button
                         key={index}
                         variant="outline"
                         size="sm"
                         onClick={() => applyPreset(preset)}
-                        className="justify-start text-left"
+                        className={`justify-start text-left h-auto py-2 px-3 transition-colors duration-200 ${
+                          selectedPresetName === preset.name
+                            ? "bg-blue-100 border-blue-300 text-blue-800"
+                            : "hover:bg-gray-100"
+                        }`}
                       >
-                        {preset.name} ({preset.width}×{preset.height})
+                        <div className="flex flex-col items-start">
+                          <span className="font-medium text-sm">{preset.name}</span>
+                          <span className="text-xs text-gray-500">
+                            {preset.width}×{preset.height} px
+                          </span>
+                        </div>
                       </Button>
                     ))}
                   </div>
@@ -358,7 +408,10 @@ export default function InstagramBatchResizer() {
                       id="width"
                       type="number"
                       value={canvasW}
-                      onChange={(e) => setCanvasW(Number.parseInt(e.target.value))}
+                      onChange={(e) => {
+                        setCanvasW(Number.parseInt(e.target.value))
+                        setSelectedPresetName(null)
+                      }}
                       min="1"
                     />
                   </div>
@@ -368,7 +421,10 @@ export default function InstagramBatchResizer() {
                       id="height"
                       type="number"
                       value={canvasH}
-                      onChange={(e) => setCanvasH(Number.parseInt(e.target.value))}
+                      onChange={(e) => {
+                        setCanvasH(Number.parseInt(e.target.value))
+                        setSelectedPresetName(null)
+                      }}
                       min="1"
                     />
                   </div>
@@ -420,6 +476,31 @@ export default function InstagramBatchResizer() {
                     step={1}
                     className="mt-2"
                   />
+                </div>
+
+                <div>
+                  <Label>Stroke Line: {strokeWidth[0]}px</Label>
+                  <div className="flex items-center gap-4 mt-2">
+                    <div>
+                      <input
+                        id="strokeColor"
+                        type="color"
+                        value={strokeColor}
+                        onChange={(e) => setStrokeColor(e.target.value)}
+                        className="w-12 h-10 rounded border border-gray-300 mt-1"
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <Slider
+                        value={strokeWidth}
+                        onValueChange={setStrokeWidth}
+                        max={Math.floor(0.05 * Math.max(canvasW, canvasH))} // Max 5% of max dimension
+                        min={0}
+                        step={1}
+                        className="mt-2"
+                      />
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -524,6 +605,20 @@ export default function InstagramBatchResizer() {
                   </div>
 
                   <div className="space-y-4 mt-auto">
+                    <div className="flex items-center justify-between gap-4">
+                      <p className="text-sm text-gray-600 flex-1">
+                        If this tool helped you, consider supporting its development! Every contribution helps keep this
+                        tool free and ad-light!
+                      </p>
+                      <Button
+                        variant="outline"
+                        className="bg-purple-50 hover:bg-purple-100 border-purple-200"
+                        onClick={() => window.open("https://ko-fi.com/abroadman", "_blank")}
+                      >
+                        💜 Ko-fi
+                      </Button>
+                    </div>
+
                     {isProcessing && (
                       <div>
                         <div className="flex items-center justify-between text-sm text-gray-600 mb-2">
@@ -548,6 +643,30 @@ export default function InstagramBatchResizer() {
                             ? `Process ${files.length} Images`
                             : `Process ${files.length} Images (Archive)`}
                     </Button>
+                    <a
+                      href="https://instagram.com/abroadman.photo"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-blue-600 hover:underline text-center block mt-2 flex items-center justify-center gap-1"
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="lucide lucide-instagram"
+                      >
+                        <rect width="20" height="20" x="2" y="2" rx="5" ry="5" />
+                        <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+                        <line x1="17.5" x2="17.5" y1="6.5" y2="6.5" />
+                      </svg>
+                      Check out my Instagram profile
+                    </a>
                   </div>
                 </CardContent>
               </Card>
@@ -576,44 +695,32 @@ export default function InstagramBatchResizer() {
           </Card>
         </div>
 
-        {/* Support Section - Full Width */}
-        <div className="mt-6 w-full">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-center">Support This Tool</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <p className="text-sm text-gray-600 text-center">
-                If this tool helped you, consider supporting its development!
-              </p>
-              <div className="flex flex-col sm:flex-row justify-center items-center gap-3 max-w-md mx-auto">
-                <Button
-                  variant="outline"
-                  className="w-full sm:w-auto bg-yellow-50 hover:bg-yellow-100 border-yellow-200"
-                  onClick={() => window.open("https://buymeacoffee.com", "_blank")}
-                >
-                  ☕ Buy me a coffee
-                </Button>
-                <Button
-                  variant="outline"
-                  className="w-full sm:w-auto bg-blue-50 hover:bg-blue-100 border-blue-200"
-                  onClick={() => window.open("https://paypal.me", "_blank")}
-                >
-                  💙 PayPal
-                </Button>
-                <Button
-                  variant="outline"
-                  className="w-full sm:w-auto bg-purple-50 hover:bg-purple-100 border-purple-200"
-                  onClick={() => window.open("https://ko-fi.com", "_blank")}
-                >
-                  💜 Ko-fi
-                </Button>
-              </div>
-              <p className="text-xs text-gray-500 text-center">
-                Every contribution helps keep this tool free and ad-light!
-              </p>
-            </CardContent>
-          </Card>
+        <div className="mt-6 w-full text-center text-sm text-gray-600">
+          Built open-source and powered locally—your browser handles everything, so your photos stay safe on your
+          computer. View the code{" "}
+          <a
+            href="https://github.com/theiosif/socials-resize-l9" // Replace with your actual GitHub repo link
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-600 hover:underline inline-flex items-center gap-1"
+          >
+            here!
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="lucide lucide-github"
+            >
+              <path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.44-.78-3.46 0 0-1.09-.35-3.5.42-1.04-.29-2.16-.42-3.3-.42-1.14 0-2.26.13-3.3.42C7.5 7.77 6.41 7.42 6.41 7.42c-.51 1.02-.86 2.21-.78 3.46 0 3.5 3 5.5 6 5.5-.39.4-.75 1-1 2v4" />
+              <path d="M9 18c-4.51 2-5-2-7-2" />
+            </svg>
+          </a>
         </div>
       </div>
     </div>
